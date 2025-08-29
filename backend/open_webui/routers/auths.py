@@ -1,4 +1,5 @@
 import re
+from urllib.parse import urlencode
 import uuid
 import time
 import datetime
@@ -673,60 +674,29 @@ async def signup(request: Request, response: Response, form_data: SignupForm):
 
 
 @router.get("/signout")
-async def signout(request: Request, response: Response):
+async def signout(request: Request):
+    home_url = request.url_for("home") 
+    response = RedirectResponse(url=home_url, status_code=302)
     response.delete_cookie("token")
-    response.delete_cookie("oui-session")
-
     if ENABLE_OAUTH_SIGNUP.value:
         oauth_id_token = request.cookies.get("oauth_id_token")
-        if oauth_id_token and OPENID_PROVIDER_URL.value:
-            try:
-                async with ClientSession(trust_env=True) as session:
-                    async with session.get(OPENID_PROVIDER_URL.value) as resp:
-                        if resp.status == 200:
-                            openid_data = await resp.json()
-                            logout_url = openid_data.get("end_session_endpoint")
-                            if logout_url:
-                                response.delete_cookie("oauth_id_token")
-
-                                return JSONResponse(
-                                    status_code=200,
-                                    content={
-                                        "status": True,
-                                        "redirect_url": f"{logout_url}?id_token_hint={oauth_id_token}"
-                                        + (
-                                            f"&post_logout_redirect_uri={WEBUI_AUTH_SIGNOUT_REDIRECT_URL}"
-                                            if WEBUI_AUTH_SIGNOUT_REDIRECT_URL
-                                            else ""
-                                        ),
-                                    },
-                                    headers=response.headers,
-                                )
-                        else:
-                            raise HTTPException(
-                                status_code=resp.status,
-                                detail="Failed to fetch OpenID configuration",
-                            )
-            except Exception as e:
-                log.error(f"OpenID signout error: {str(e)}")
-                raise HTTPException(
-                    status_code=500,
-                    detail="Failed to sign out from the OpenID provider.",
-                )
-
-    if WEBUI_AUTH_SIGNOUT_REDIRECT_URL:
-        return JSONResponse(
-            status_code=200,
-            content={
-                "status": True,
-                "redirect_url": WEBUI_AUTH_SIGNOUT_REDIRECT_URL,
-            },
-            headers=response.headers,
-        )
-
-    return JSONResponse(
-        status_code=200, content={"status": True}, headers=response.headers
-    )
+        if oauth_id_token:
+            discovery_url = f"{OPENID_PROVIDER_URL.value.rstrip('/')}/.well-known/openid-configuration"
+            async with ClientSession() as session:
+                resp = await session.get(discovery_url)
+                if resp.status != 200:
+                    raise HTTPException(status_code=502, detail="can not load OpenID configuration")
+                data = await resp.json()
+            logout_url = data.get("end_session_endpoint")
+            if not logout_url:
+                raise HTTPException(status_code=500, detail="OP can not find end_session_endpoint")
+            params = {
+                "id_token_hint": oauth_id_token,
+                "post_logout_redirect_uri": str(home_url),
+            }
+            response.delete_cookie("oauth_id_token")
+            return RedirectResponse(url=f"{logout_url}?{urlencode(params)}", status_code=302)
+    return response
 
 
 ############################
