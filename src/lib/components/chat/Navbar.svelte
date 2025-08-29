@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getContext } from 'svelte';
+	import { onMount, getContext, tick } from 'svelte';
 	import { toast } from 'svelte-sonner';
 
 	import {
@@ -57,6 +57,33 @@
 
 	let showShareChatModal = false;
 	let showDownloadChatModal = false;
+
+    async function setLogoImage() {
+		await tick();
+        const brand = document.getElementById('brand');
+
+        if (brand) {
+            const isDarkMode = document.documentElement.classList.contains('dark');
+
+            if (isDarkMode) {
+				const darkImage = new Image();
+				darkImage.src = '/static/trident-large.png';
+
+				darkImage.onload = () => {
+					brand.src = '/static/trident-large.png';
+					brand.style.filter = '';
+				};
+
+				darkImage.onerror = () => {
+					brand.src = '/static/iu-sig.png';
+				};
+			}
+        }
+	}
+
+    onMount(async () => {
+		setLogoImage();
+	});
 </script>
 
 <ShareChatModal bind:show={showShareChatModal} chatId={$chatId} />
@@ -71,6 +98,15 @@
 />
 
 <nav class="sticky top-0 z-30 w-full py-1 -mb-8 flex flex-col items-center drag-region">
+    <div class=" self-center" style="position: absolute;">
+        <img
+            id="brand"
+            crossorigin="anonymous"
+            src="/static/iu-sig.png"
+            class=" h-10"
+            alt=""
+        />
+    </div>
 	<div class="flex items-center w-full pl-1.5 pr-1">
 		<div
 			class=" bg-linear-to-b via-50% from-white via-white to-transparent dark:from-gray-900 dark:via-gray-900 dark:to-transparent pointer-events-none absolute inset-0 -bottom-7 z-[-1]"
