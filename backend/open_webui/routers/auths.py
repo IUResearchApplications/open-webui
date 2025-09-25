@@ -1,4 +1,5 @@
 import re
+from urllib.parse import urlencode
 import uuid
 import time
 import datetime
@@ -674,7 +675,9 @@ async def signup(request: Request, response: Response, form_data: SignupForm):
 
 
 @router.get("/signout")
-async def signout(request: Request, response: Response):
+async def signout(request: Request):
+    home_url = request.url_for("home") 
+    response = RedirectResponse(url=home_url, status_code=302)
     response.delete_cookie("token")
     response.delete_cookie("oui-session")
     response.delete_cookie("oauth_id_token")
