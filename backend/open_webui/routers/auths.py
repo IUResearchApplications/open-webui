@@ -20,6 +20,7 @@ from open_webui.models.auths import (
 )
 from open_webui.models.users import Users, UpdateProfileForm
 from open_webui.models.groups import Groups
+from open_webui.models.oauth_sessions import OAuthSessions
 
 from open_webui.constants import ERROR_MESSAGES, WEBHOOK_MESSAGES
 from open_webui.env import (
@@ -678,25 +679,67 @@ async def signout(request: Request):
     home_url = request.url_for("home") 
     response = RedirectResponse(url=home_url, status_code=302)
     response.delete_cookie("token")
-    if ENABLE_OAUTH_SIGNUP.value:
-        oauth_id_token = request.cookies.get("oauth_id_token")
-        if oauth_id_token:
-            discovery_url = f"{OPENID_PROVIDER_URL.value.rstrip('/')}/.well-known/openid-configuration"
-            async with ClientSession() as session:
-                resp = await session.get(discovery_url)
-                if resp.status != 200:
-                    raise HTTPException(status_code=502, detail="can not load OpenID configuration")
-                data = await resp.json()
-            logout_url = data.get("end_session_endpoint")
-            if not logout_url:
-                raise HTTPException(status_code=500, detail="OP can not find end_session_endpoint")
-            params = {
-                "id_token_hint": oauth_id_token,
-                "post_logout_redirect_uri": str(home_url),
-            }
-            response.delete_cookie("oauth_id_token")
-            return RedirectResponse(url=f"{logout_url}?{urlencode(params)}", status_code=302)
-    return response
+    response.delete_cookie("oui-session")
+    response.delete_cookie("oauth_id_token")
+
+    oauth_session_id = request.cookies.get("oauth_session_id")
+    if oauth_session_id:
+        response.delete_cookie("oauth_session_id")
+
+        session = OAuthSessions.get_session_by_id(oauth_session_id)
+        oauth_server_metadata_url = (
+            request.app.state.oauth_manager.get_server_metadata_url(session.provider)
+            if session
+            else None
+        ) or OPENID_PROVIDER_URL.value
+
+        if session and oauth_server_metadata_url:
+            oauth_id_token = session.token.get("id_token")
+            try:
+                async with ClientSession(trust_env=True) as session:
+                    async with session.get(oauth_server_metadata_url) as r:
+                        if r.status == 200:
+                            openid_data = await r.json()
+                            logout_url = openid_data.get("end_session_endpoint")
+
+                            if logout_url:
+                                return JSONResponse(
+                                    status_code=200,
+                                    content={
+                                        "status": True,
+                                        "redirect_url": f"{logout_url}?id_token_hint={oauth_id_token}"
+                                        + (
+                                            f"&post_logout_redirect_uri={WEBUI_AUTH_SIGNOUT_REDIRECT_URL}"
+                                            if WEBUI_AUTH_SIGNOUT_REDIRECT_URL
+                                            else ""
+                                        ),
+                                    },
+                                    headers=response.headers,
+                                )
+                        else:
+                            raise Exception("Failed to fetch OpenID configuration")
+
+            except Exception as e:
+                log.error(f"OpenID signout error: {str(e)}")
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to sign out from the OpenID provider.",
+                    headers=response.headers,
+                )
+
+    if WEBUI_AUTH_SIGNOUT_REDIRECT_URL:
+        return JSONResponse(
+            status_code=200,
+            content={
+                "status": True,
+                "redirect_url": WEBUI_AUTH_SIGNOUT_REDIRECT_URL,
+            },
+            headers=response.headers,
+        )
+
+    return JSONResponse(
+        status_code=200, content={"status": True}, headers=response.headers
+    )
 
 
 ############################
