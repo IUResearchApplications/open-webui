@@ -133,6 +133,25 @@
 	async function setLogoImage() {
 		await tick();
 		const logo = document.getElementById('logo');
+		const brand = document.getElementById('brand');
+
+		if (brand) {
+			const isDarkMode = document.documentElement.classList.contains('dark');
+
+			if (isDarkMode) {
+				const darkImage = new Image();
+				darkImage.src = '/static/trident-large.png';
+
+				darkImage.onload = () => {
+					brand.src = '/static/trident-large.png';
+					brand.style.filter = '';
+				};
+
+				darkImage.onerror = () => {
+					brand.src = '/static/iu-sig.png';
+				};
+			}
+		}
 
 		if (logo) {
 			const isDarkMode = document.documentElement.classList.contains('dark');
@@ -207,6 +226,17 @@
 			id="auth-container"
 		>
 			<div class="w-full px-10 min-h-screen flex flex-col text-center">
+				<div class="mt-10 mb-10 z-50 self-center">
+					<div class="flex space-x-2">
+						<img
+							id="brand"
+							crossorigin="anonymous"
+							src="{WEBUI_BASE_URL}/static/iu-sig.png"
+							class=" h-16"
+							alt=""
+						/>
+					</div>
+				</div>
 				{#if ($config?.features.auth_trusted_header ?? false) || $config?.features.auth === false}
 					<div class=" my-auto pb-10 w-full sm:max-w-md">
 						<div
