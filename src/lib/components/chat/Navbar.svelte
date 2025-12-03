@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getContex, onMount } from 'svelte';
+	import { getContext, onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
 
 	import {
