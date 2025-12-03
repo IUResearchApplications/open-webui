@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getContext } from 'svelte';
+	import { getContex, onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
 
 	import {
@@ -59,7 +59,7 @@
 
 	let showShareChatModal = false;
 	let showDownloadChatModal = false;
-	
+
 	async function setLogoImage() {
 		await tick();
 		const brand = document.getElementById('brand');
