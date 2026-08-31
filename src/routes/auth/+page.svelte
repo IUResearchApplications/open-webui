@@ -227,6 +227,10 @@
 	<div class="w-full absolute top-0 left-0 right-0 h-8 drag-region" />
 
 	{#if loaded}
+		<div class="absolute top-10 left-1/2 -translate-x-1/2 z-50">
+			<img src="/static/iu-sig.png" alt="" class="h-12 dark:hidden" />
+			<img src="/static/trident-large.png" alt="" class="hidden h-12 dark:block" />
+		</div>
 		<div
 			class="fixed bg-transparent min-h-screen w-full flex justify-center z-50 text-black dark:text-white"
 			id="auth-container"

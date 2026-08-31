@@ -4273,6 +4273,11 @@
 
 			<div class="w-full h-full flex">
 				<div class="h-full flex relative max-w-full min-w-0 flex-1 flex-col">
+					<img
+						src="/static/trident-large.png"
+						alt=""
+						class="absolute top-2 left-1/2 -translate-x-1/2 z-50 h-8 pointer-events-none"
+					/>
 					<FilesOverlay show={dragged} />
 					{#if embedded}
 						<div
